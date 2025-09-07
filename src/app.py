@@ -1,7 +1,8 @@
+from . import config
 import os
 from flask import Flask, request, jsonify
-from rag_chain import ask
-from loaders import add_to_vectorstore, rebuild_vectorstore
+from .rag_chain import ask
+from .loaders import add_to_vectorstore, rebuild_vectorstore
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 

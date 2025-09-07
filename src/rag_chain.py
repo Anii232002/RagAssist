@@ -1,6 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
-from retriever import get_retriever
+from .retriever import get_retriever
 
 #Load LLM
 llm = ChatOpenAI(model="gpt-4o-mini",temperature=0)
