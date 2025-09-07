@@ -29,5 +29,3 @@ src/storage/*
 # Ignore notebooks output if desired
 notebooks/*.ipynb
 
-# Optional: Ignore all storage data
-storage/
