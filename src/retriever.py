@@ -1,32 +1,24 @@
 import os
-from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from pinecone import Pinecone
 from dotenv import load_dotenv
+from langchain_pinecone import PineconeVectorStore
 
 load_dotenv()
 
-PERSIST_DIRECTORY = os.getenv(
-    "PERSIST_DIRECTORY",
-     os.path.join(os.path.dirname(__file__), "../storage/chroma_store")
-)
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+INDEX_NAME = os.getenv("PINECONE_INDEX", "ragassist")
+index = pc.Index(INDEX_NAME)
 
 # Use same model , Embeddings must match what we used in loaders.py
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
+
 def get_retriever():
-     """Connects to Chroma DB and returns a retriever object."""
-     db = Chroma(
-          persist_directory=PERSIST_DIRECTORY,
-          embedding_function=embeddings
-     )
 
-    #Now search in the db
-     retriever = db.as_retriever(
-          search_type="similarity",
-          search_kwargs={"k": 3} #no of chunks to fetch
-     )
-
-     return retriever
+     """Return a retriever from Pinecone index."""
+     vectorstore = PineconeVectorStore(index=index,embedding=embeddings,text_key="text")
+     return vectorstore.as_retriever(search_kwargs={"k": 3})
 
 #TEST below only..
 #retriever.get_relevant_documents(query)

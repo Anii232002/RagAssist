@@ -3,13 +3,19 @@ from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import TextLoader, PyPDFLoader
 from langchain_openai import OpenAIEmbeddings
-from langchain_chroma import Chroma
+from pinecone import Pinecone
+from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
 
 
-PERSIST_DIRECTORY = os.getenv(
-    "PERSIST_DIRECTORY",
-    os.path.join(os.path.dirname(__file__),"../storage/chroma_store")
-)
+
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+INDEX_NAME = os.getenv("PINECONE_INDEX", "ragassist")
+
+index = pc.Index(INDEX_NAME)
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size = 1000,
@@ -38,35 +44,22 @@ def add_to_vectorstore(file_path:str):
      """Load a file, create embeddings, and add them to Chroma DB."""
      docs = load_and_split(file_path)
 
-     db = Chroma(
-          persist_directory=PERSIST_DIRECTORY,
-          embedding_function=embeddings
-     )
-
-     db.add_documents(docs)
-     db.persist()
-     print(f"Added {len(docs)} chunks from {file_path} to Chroma DB.")
+     PineconeVectorStore.from_documents(docs, embeddings, index_name=INDEX_NAME)
+     print(f"Added {len(docs)} chunks from {file_path} to Pinecone.")
 
 def rebuild_vectorstore(folder_path: str):
-    """Clear Chroma DB and rebuild from all files in folder."""
+    """Rebuild Pinecone index from all files in folder (deletes old data)."""
     import shutil
 
-    #delete olde Chroma Store
+    index = pc.Index(INDEX_NAME)
+    index.delete(delete_all=True)
 
-    if os.path.exists(PERSIST_DIRECTORY):
-        shutil.rmtree(PERSIST_DIRECTORY)
-
-    db = Chroma(persist_directory=PERSIST_DIRECTORY,
-                embedding_function=embeddings)
-    
     for fname in os.listdir(folder_path):
         fpath = os.path.join(folder_path, fname)
         if os.path.isfile(fpath):
             docs = load_and_split(fpath)
-            db.add_documents(docs)
-
-    db.persist()
-    print("Vector store rebuilt successfully.")
+            PineconeVectorStore.from_documents(docs, embeddings, index_name=INDEX_NAME)
+    print("Pinecone index rebuilt successfully.")
 
 if __name__ == "__main__":
     # Example: add notes.txt into DB
