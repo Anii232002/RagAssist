@@ -1,0 +1,33 @@
+# Python virtual environments
+.venv/
+venv/
+
+# VS Code settings
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Storage and database files
+src/storage/*
+!src/storage/.gitkeep
+
+# Heroku/Procfile artifacts
+*.log
+
+# Ignore notebooks output if desired
+notebooks/*.ipynb
+
+# Optional: Ignore all storage data
+storage/
