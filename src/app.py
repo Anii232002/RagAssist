@@ -4,8 +4,10 @@ from flask import Flask, request, jsonify
 from .rag_chain import ask
 from .loaders import add_to_vectorstore, rebuild_vectorstore
 from werkzeug.utils import secure_filename
+from .cloud_storage import delete_document,list_documents,upload_document,download_document,get_downloadable_url
 from dotenv import load_dotenv
-
+from pathlib import Path
+import tempfile
 load_dotenv()
 
 app = Flask(__name__)
@@ -26,8 +28,7 @@ def ask_question():
     try:
         result = ask(query)
         return jsonify({
-            "answer": result["answer"],
-            "sources": result["sources"]
+            "answer": result["answer"]
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -42,12 +43,23 @@ def ingest():
     if file.filename =="":
          return jsonify({"error": "Empty filename"}), 400
     filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    file.save(file_path)
 
     try:
-        chunks = add_to_vectorstore(file_path)
-        return jsonify({"message": f"File ingested successfully", "chunks": chunks})
+        with tempfile.NamedTemporaryFile(delete=False)as tmp_file:
+            file.save(tmp_file.name)
+            upload_document(tmp_file.name,filename)
+            tmp_file_path = tmp_file.name
+        
+        os.remove(tmp_file.name)
+
+        file_bytes = download_document(filename)
+        with tempfile.NamedTemporaryFile(delete=False,suffix=Path(filename).suffix) as tmp_file:
+            tmp_file.write(file_bytes)
+            tmp_file_path = tmp_file.name
+
+        add_to_vectorstore(tmp_file_path)
+        os.remove(tmp_file_path)
+        return jsonify({"message": "File ingested successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -55,14 +67,14 @@ def ingest():
 def list_docs():
     """List all uploaded documents."""
     try:
-        files = os.listdir(app.config["UPLOAD_FOLDER"])
+        files = list_documents()
         return jsonify({"documents": files})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
 @app.route("/delete",methods=["POST"])
 def delete_doc():
-    """Delete a document and re-index."""
+    """Delete a document from Supabase and re-index."""
     try:
         data = request.get_json()
         filename = data.get("filename")
@@ -70,16 +82,29 @@ def delete_doc():
         if not filename:
             return jsonify({"error": "File name required"})
         
-        file_path = os.path.join(app.config["UPLOAD_FOLDER"],filename)
-
-        if not os.path.exists(file_path):
-            return jsonify({"error":"File not found"}), 404
+        if filename.startswith("http"):
+            filename = filename.split("/")[-1]
         
-        os.remove(file_path)
-
-        rebuild_vectorstore(app.config["UPLOAD_FOLDER"])
+        delete_document(filename)
+        
+        rebuild_vectorstore()
 
         return jsonify({"message": f"{filename} deleted and index updated."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/download",methods=["POST"])
+def download_doc():
+    """ Returns a signed URL for downloading a file from Supabase Storage.
+    Expects JSON body: { "filename": "your_file.txt" }"""
+    try:
+        data = request.get_json()
+        filename = data.get("filename")
+
+        if not filename:
+            return jsonify({"error":"File name is required"})
+        
+        return get_downloadable_url(filename)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     

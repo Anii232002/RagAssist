@@ -1,11 +1,14 @@
 import os
+import tempfile
 from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import TextLoader, PyPDFLoader
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone
-from langchain_openai import OpenAIEmbeddings
+
 from langchain_pinecone import PineconeVectorStore
+from .cloud_storage import list_documents,download_document
+
 
 
 
@@ -47,18 +50,23 @@ def add_to_vectorstore(file_path:str):
      PineconeVectorStore.from_documents(docs, embeddings, index_name=INDEX_NAME)
      print(f"Added {len(docs)} chunks from {file_path} to Pinecone.")
 
-def rebuild_vectorstore(folder_path: str):
+def rebuild_vectorstore():
     """Rebuild Pinecone index from all files in folder (deletes old data)."""
-    import shutil
 
-    index = pc.Index(INDEX_NAME)
     index.delete(delete_all=True)
+    print(INDEX_NAME)
 
-    for fname in os.listdir(folder_path):
-        fpath = os.path.join(folder_path, fname)
-        if os.path.isfile(fpath):
-            docs = load_and_split(fpath)
-            PineconeVectorStore.from_documents(docs, embeddings, index_name=INDEX_NAME)
+    docs_list = list_documents()
+    for fname in docs_list:
+        file_bytes = download_document(fname)
+        ext = Path(fname).suffix.lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+            tmp_file.write(file_bytes)
+            tmp_file_path = tmp_file.name
+
+        docs = load_and_split(tmp_file_path)
+        PineconeVectorStore.from_documents(docs,embeddings,index_name=INDEX_NAME)
+
     print("Pinecone index rebuilt successfully.")
 
 if __name__ == "__main__":

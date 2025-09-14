@@ -18,7 +18,7 @@ def get_retriever():
 
      """Return a retriever from Pinecone index."""
      vectorstore = PineconeVectorStore(index=index,embedding=embeddings,text_key="text")
-     return vectorstore.as_retriever(search_kwargs={"k": 3})
+     return vectorstore.as_retriever(search_kwargs={"k": 10})
 
 #TEST below only..
 #retriever.get_relevant_documents(query)
