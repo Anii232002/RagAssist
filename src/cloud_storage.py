@@ -32,4 +32,6 @@ def download_document(file_name: str):
 def get_downloadable_url(file_name:str):
     res = supabase.storage.from_(BUCKET_NAME).get_public_url(file_name)
     return res
+
+
     

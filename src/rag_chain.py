@@ -25,6 +25,10 @@ def ask(query:str):
         "answer": result["result"]
     }
 
+def search_docs(query):
+    results = retriever.get_relevant_documents(query)
+    return results
+
 ##TEST
 
 if __name__ == "__main__":
