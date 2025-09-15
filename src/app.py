@@ -108,7 +108,7 @@ def download_doc():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/search",methods=["GET"])
+@app.route("/search",methods=["POST"])
 def search_doc():
     try:
         data = request.get_json()
